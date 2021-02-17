@@ -5,11 +5,16 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::thread;
 use crate::InputState::{Ready, Quitting};
+use std::time::SystemTime;
+
+mod font;
 
 #[derive(Debug, PartialEq)]
 enum InputState {
     Ready,
-    Labeling,
+    Starting(usize),
+    Running(SystemTime),
+    Paused(SystemTime, SystemTime),
     Quitting,
 }
 
@@ -58,7 +63,6 @@ fn main() {
         match k {
             Some(Input::Character('q')) => { input_state = Quitting }
             Some(input) => { window.addstr(&format!("{:?}", input)); }
-            Some(_) => {}
             None => {
                 if i % 10 == 0 {
                     window.addstr(format!("i {}", i));
