@@ -1,4 +1,6 @@
-#[allow(dead_code)]
+use std::cmp;
+use std::iter::Iterator;
+
 const ZERO: &str = r"
   ___
  / _ \
@@ -85,6 +87,14 @@ const NINE: &str = r"
   /_/
 ";
 
-fn get_font() {
-    let numerals: Vec<&str> = vec![ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE];
+pub fn get_font() -> usize {
+    let digits= [ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE];
+    let widths = digits.iter().map(|s| max_line_width(s));
+    let max = widths.clone().fold(0, cmp::max);
+    println!("widths {:#?}", widths.collect::<Vec<usize>>());
+    max as usize
+}
+
+fn max_line_width(s:&str ) -> usize {
+    s.lines().map(|l| l.len()).fold(0, cmp::max)
 }
