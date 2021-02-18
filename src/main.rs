@@ -56,5 +56,12 @@ fn adjust_timer(minutes: usize, input: Input) -> State {
 }
 
 fn render(window: &Window, state: State) -> bool {
+    let (minutes, seconds) = match state {
+        State::Starting(minutes) => (minutes, 0 as usize),
+        State::Running(end_time) => (11, 12),
+        State::Paused(end_time, pause_time) => (13, 14),
+    };
+    window.clear();
+    window.printw(format!("{}:{}", minutes, seconds));
     true
 }
