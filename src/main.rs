@@ -1,17 +1,18 @@
 extern crate pancurses;
 
 use pancurses::{initscr, endwin, Input, noecho, cbreak, Window};
-use std::time::{SystemTime, Duration};
+use std::time::{SystemTime, Duration, Instant};
 use std::cmp;
 use std::alloc::System;
+use core::num::FpCategory::Infinite;
 
 mod font;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 enum State {
     Starting(usize),
-    Running(SystemTime),
-    Paused(SystemTime, SystemTime),
+    Running(Instant),
+    Paused(Instant, Instant),
 }
 
 
@@ -50,22 +51,20 @@ fn setup_mode(minutes: usize, input: Input) -> State {
 }
 
 fn run_state(minutes: usize) -> State {
-    State::Running(
-        SystemTime::now().checked_add(
-            Duration::from_secs((minutes * 60) as u64)).unwrap())
+    State::Running(Instant::now() + Duration::from_secs((minutes * 60) as u64))
 }
 
 
-fn run_mode(end_time: SystemTime, input: Input) -> State {
+fn run_mode(end_time: Instant, input: Input) -> State {
     match input {
-        Input::Character(' ') => State::Paused(end_time, SystemTime::now()),
+        Input::Character(' ') => State::Paused(end_time, Instant::now()),
         _ => State::Running(end_time)
     }
 }
 
-fn pause_mode(end_time: SystemTime, paused_time: SystemTime, input: Input) -> State {
+fn pause_mode(end_time: Instant, paused_time: Instant, input: Input) -> State {
     match input {
-        Input::Character(' ') => State::Running(SystemTime::now()),
+        Input::Character(' ') => State::Running(Instant::now()),
         _ => State::Paused(end_time, paused_time)
     }
 }
@@ -81,8 +80,8 @@ fn render(window: &Window, state: State) -> bool {
     true
 }
 
-fn min_sec_until(end_time: SystemTime) -> (usize, usize) {
-    let duration = end_time.duration_since(SystemTime::now()).unwrap();
+fn min_sec_until(end_time: Instant) -> (usize, usize) {
+    let duration = end_time.saturating_duration_since(Instant::now());
     let secs = duration.as_secs() as usize;
     (secs / 60, secs % 60)
 }
