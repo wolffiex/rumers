@@ -84,5 +84,5 @@ fn render(window: &Window, state: State) -> bool {
 fn min_sec_until(end_time: SystemTime) -> (usize, usize) {
     let duration = end_time.duration_since(SystemTime::now()).unwrap();
     let secs = duration.as_secs() as usize;
-    (secs / 10, secs % 60)
+    (secs / 60, secs % 60)
 }
