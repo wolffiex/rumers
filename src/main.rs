@@ -42,7 +42,7 @@ fn main() {
 
 fn setup_mode(minutes: usize, input: Input) -> State {
     match input {
-        Input::Character(' ') | Input::KeyEnter => run_state(minutes),
+        Input::Character(' ') | Input::Character('\n') | Input::KeyEnter => run_state(minutes),
         Input::KeyUp => State::Starting(minutes + 1),
         Input::KeyDown => State::Starting(if minutes > 0 { minutes - 1 } else { 0 }),
         _ => State::Starting(minutes),
