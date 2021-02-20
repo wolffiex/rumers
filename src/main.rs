@@ -1,6 +1,6 @@
 extern crate pancurses;
 
-use pancurses::{initscr, endwin, Input, noecho, cbreak, Window};
+use pancurses::{initscr, endwin, Input, noecho, cbreak, Window, curs_set};
 use std::time::{Duration, Instant};
 
 mod font;
@@ -19,9 +19,10 @@ fn main() {
     window.keypad(true);
     noecho();
     cbreak();
+    curs_set(0);
     window.printw("Hello Rust");
     window.refresh();
-    window.timeout(250);
+    window.timeout(100);
     let mut state = State::Starting(0);
     while render(&window, state, &font) {
         state = match window.getch() {
@@ -82,8 +83,8 @@ fn render(window: &Window, state: State, font: &Vec<String>) -> bool {
         render_numeral(window, 2, y, &font[m_tens]);
     }
     render_numeral(window, 12, y, &font[m_ones]);
-    render_numeral(window, 22, y, &font[s_tens]);
-    render_numeral(window, 32, y, &font[s_ones]);
+    render_numeral(window, 24, y, &font[s_tens]);
+    render_numeral(window, 34, y, &font[s_ones]);
     true
 }
 
