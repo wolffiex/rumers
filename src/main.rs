@@ -14,9 +14,9 @@ enum State {
 
 
 fn main() {
-    let window = initscr();
     let f = font::get_font();
-    println!("font is {:#?}", f);
+    return ();
+    let window = initscr();
     window.keypad(true);
     noecho();
     cbreak();
