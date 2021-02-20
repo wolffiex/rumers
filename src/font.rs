@@ -87,23 +87,19 @@ const NINE: &str = r"
   /_/
 ";
 
-pub fn get_font() -> Vec<(usize, String)> {
+pub fn get_font() -> Vec<String> {
     let numerals= [ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE];
     let widths = numerals.iter().map(|s| max_line_width(s));
     let max_width = widths.clone().fold(0, cmp::max);
 
-    let font = widths.zip(numerals.iter()).map(|(width, numeral)| {
-        let front_pad = max_width - width;
-        println!("front {}", front_pad);
-        let formatted = numeral.lines().skip(1).fold("".to_owned(), |acc, line| {
+    widths.zip(numerals.iter()).map(|(width, numeral)| {
+        numeral.lines().skip(1).fold("".to_owned(), |acc, line| {
             let padded = format!("{:<1$}", line, width);
             let pad2 = format!("{:>1$}", padded, max_width);
             println!("{}*", pad2);
             return acc + &pad2 + "\n";
-        });
-        (width, formatted)
-    }).collect::<Vec<(usize, String)>>();
-    font
+        })
+    }).collect::<Vec<String>>()
 }
 
 fn max_line_width(s:&str ) -> usize {

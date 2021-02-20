@@ -14,8 +14,7 @@ enum State {
 
 
 fn main() {
-    let f = font::get_font();
-    return ();
+    let font = font::get_font();
     let window = initscr();
     window.keypad(true);
     noecho();
@@ -24,7 +23,7 @@ fn main() {
     window.refresh();
     window.timeout(250);
     let mut state = State::Starting(0);
-    while render(&window, state) {
+    while render(&window, state, &font) {
         state = match window.getch() {
             Some(input) => match state {
                 State::Starting(minutes) => setup_mode(minutes, input),
@@ -66,7 +65,7 @@ fn pause_mode(end_time: Instant, paused_time: Instant, input: Input) -> State {
     }
 }
 
-fn render(window: &Window, state: State) -> bool {
+fn render(window: &Window, state: State, font: &Vec<String>) -> bool {
     let (minutes, seconds) = match state {
         State::Starting(minutes) => (minutes, 0 as usize),
         State::Running(end_time) => min_sec_until(Instant::now(), end_time),
@@ -74,8 +73,21 @@ fn render(window: &Window, state: State) -> bool {
             min_sec_until(pause_time, end_time)
     };
     window.clear();
-    window.printw(format!("{}:{}", minutes, seconds));
+    let m_tens = minutes/10;
+    let m_ones = minutes%10;
+    //window.printw(format!("{}:{}", minutes, seconds));
+    render_numeral(window, 2, 2, &font[m_tens]);
+    render_numeral(window, 12, 2, &font[m_ones]);
     true
+}
+
+fn render_numeral(window: &Window, x: usize, y: usize, numeral: &str) {
+    let mut offset:i32 = 0;
+    for line in numeral.lines() {
+        window.mvaddstr(y as i32 + offset, x as i32, line);
+        offset = offset + 1;
+    }
+
 }
 
 fn min_sec_until(from_time: Instant, to_time: Instant) -> (usize, usize) {
