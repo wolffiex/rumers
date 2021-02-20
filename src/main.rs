@@ -78,14 +78,15 @@ fn render(window: &Window, state: State, font: &Vec<String>) -> bool {
     let m_ones = minutes % 10;
     let s_tens = seconds / 10;
     let s_ones = seconds % 10;
-    const y: usize = 2;
-    if m_tens > 0 { render_numeral(window, 2, y, &font[m_tens]) }
-    render_numeral(window, 12, y, &font[m_ones]);
-    render_numeral(window, 24, y, &font[s_tens]);
-    render_numeral(window, 34, y, &font[s_ones]);
+    const TOP: usize = 2;
+    if m_tens > 0 { render_numeral(window, 2, TOP, &font[m_tens]) }
+    render_numeral(window, 12, TOP, &font[m_ones]);
+    render_numeral(window, 24, TOP, &font[s_tens]);
+    render_numeral(window, 34, TOP, &font[s_ones]);
     window.attrset(COLOR_PAIR(1) );
-    window.mvaddstr(4, 22, r"x");
-    window.mvaddstr(6, 22, r"x");
+    for &y in [4, 6].iter() {
+        window.mvaddstr(y, 22, r"x");
+    }
     window.attrset(COLOR_PAIR(0) );
     window.refresh();
     true
