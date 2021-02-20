@@ -88,11 +88,18 @@ const NINE: &str = r"
 ";
 
 pub fn get_font() -> usize {
-    let digits= [ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE];
-    let widths = digits.iter().map(|s| max_line_width(s));
-    let max = widths.clone().fold(0, cmp::max);
-    println!("widths {:#?}", widths.collect::<Vec<usize>>());
-    max as usize
+    let numerals= [ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE];
+    let widths = numerals.iter().map(|s| max_line_width(s));
+    let max_width = widths.clone().fold(0, cmp::max);
+
+    let font = widths.zip(numerals.iter()).map(|(width, numeral)| {
+        let formatted = numeral.lines().skip(1).fold("".to_owned(), |acc, line| {
+            acc + line
+        });
+        (width, formatted)
+    }).collect::<Vec<(usize, String)>>();
+    println!("widths {:#?}", font);
+    max_width
 }
 
 fn max_line_width(s:&str ) -> usize {

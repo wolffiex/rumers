@@ -1,10 +1,7 @@
 extern crate pancurses;
 
 use pancurses::{initscr, endwin, Input, noecho, cbreak, Window};
-use std::time::{SystemTime, Duration, Instant};
-use std::cmp;
-use std::alloc::System;
-use core::num::FpCategory::Infinite;
+use std::time::{Duration, Instant};
 
 mod font;
 
@@ -72,16 +69,17 @@ fn pause_mode(end_time: Instant, paused_time: Instant, input: Input) -> State {
 fn render(window: &Window, state: State) -> bool {
     let (minutes, seconds) = match state {
         State::Starting(minutes) => (minutes, 0 as usize),
-        State::Running(end_time) => min_sec_until(end_time),
-        State::Paused(end_time, pause_time) => (13, 14),
+        State::Running(end_time) => min_sec_until(Instant::now(), end_time),
+        State::Paused(end_time, pause_time) =>
+            min_sec_until(pause_time, end_time)
     };
     window.clear();
     window.printw(format!("{}:{}", minutes, seconds));
     true
 }
 
-fn min_sec_until(end_time: Instant) -> (usize, usize) {
-    let duration = end_time.saturating_duration_since(Instant::now());
+fn min_sec_until(from_time: Instant, to_time: Instant) -> (usize, usize) {
+    let duration = to_time.saturating_duration_since(from_time);
     let secs = duration.as_secs() as usize;
     (secs / 60, secs % 60)
 }
