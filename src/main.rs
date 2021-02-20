@@ -73,21 +73,26 @@ fn render(window: &Window, state: State, font: &Vec<String>) -> bool {
             min_sec_until(pause_time, end_time)
     };
     window.clear();
-    let m_tens = minutes/10;
-    let m_ones = minutes%10;
-    //window.printw(format!("{}:{}", minutes, seconds));
-    render_numeral(window, 2, 2, &font[m_tens]);
-    render_numeral(window, 12, 2, &font[m_ones]);
+    let m_tens = minutes / 10;
+    let m_ones = minutes % 10;
+    let s_tens = seconds / 10;
+    let s_ones = seconds % 10;
+    const y: usize = 2;
+    if (m_tens > 0) {
+        render_numeral(window, 2, y, &font[m_tens]);
+    }
+    render_numeral(window, 12, y, &font[m_ones]);
+    render_numeral(window, 22, y, &font[s_tens]);
+    render_numeral(window, 32, y, &font[s_ones]);
     true
 }
 
 fn render_numeral(window: &Window, x: usize, y: usize, numeral: &str) {
-    let mut offset:i32 = 0;
+    let mut offset: i32 = 0;
     for line in numeral.lines() {
         window.mvaddstr(y as i32 + offset, x as i32, line);
         offset = offset + 1;
     }
-
 }
 
 fn min_sec_until(from_time: Instant, to_time: Instant) -> (usize, usize) {
