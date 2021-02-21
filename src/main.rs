@@ -16,15 +16,17 @@ enum State {
 fn main() {
     let font = font::get_font();
     let window = initscr();
+    let start_time: Instant = Instant::now();
     pancurses::start_color();
     window.keypad(true);
-    pancurses::init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
+    pancurses::init_color(10, 300, 300, 300);
+    pancurses::init_pair(1, 10, COLOR_BLACK);
     pancurses::noecho();
     pancurses::cbreak();
     pancurses::curs_set(0);
     window.timeout(100);
     let mut state = State::Starting(0);
-    while render(&window, state, &font) {
+    while render(&window, state, &font, (start_time, Instant::now())) {
         state = match window.getch() {
             Some(input) => match state {
                 State::Starting(minutes) => setup_mode(minutes, input),
@@ -61,15 +63,18 @@ fn run_mode(end_time: Instant, input: Input) -> State {
 
 fn pause_mode(end_time: Instant, paused_time: Instant, input: Input) -> State {
     match input {
-        Input::Character(' ') => State::Running(Instant::now()),
+        Input::Character(' ') => {
+            let remaining = end_time - paused_time;
+            State::Running(Instant::now() + remaining)
+        },
         _ => State::Paused(end_time, paused_time)
     }
 }
 
-fn render(window: &Window, state: State, font: &Vec<String>) -> bool {
+fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_now): (Instant, Instant)) -> bool {
     let (minutes, seconds) = match state {
         State::Starting(minutes) => (minutes, 0 as usize),
-        State::Running(end_time) => min_sec_until(Instant::now(), end_time),
+        State::Running(end_time) => min_sec_until(time_now, end_time),
         State::Paused(end_time, pause_time) =>
             min_sec_until(pause_time, end_time)
     };
@@ -79,15 +84,29 @@ fn render(window: &Window, state: State, font: &Vec<String>) -> bool {
     let s_tens = seconds / 10;
     let s_ones = seconds % 10;
     const TOP: usize = 2;
+    if let State::Paused(_, _) = state {
+        let duration = time_now - start_time;
+        if (duration.as_millis() / 800) % 2 == 0 {
+            window.attrset(COLOR_PAIR(1));
+        }
+    } else {
+        window.attrset(COLOR_PAIR(0) );
+    }
     if m_tens > 0 { render_numeral(window, 2, TOP, &font[m_tens]) }
     render_numeral(window, 12, TOP, &font[m_ones]);
     render_numeral(window, 24, TOP, &font[s_tens]);
     render_numeral(window, 34, TOP, &font[s_ones]);
-    window.attrset(COLOR_PAIR(1) );
+    if let State::Running(_) = state {
+        let duration = time_now - start_time;
+        if (duration.as_millis() / 800) % 2 == 0 {
+            window.attrset(COLOR_PAIR(1));
+        }
+    } else {
+        window.attrset(COLOR_PAIR(0) );
+    }
     for &y in [4, 6].iter() {
         window.mvaddstr(y, 22, r"x");
     }
-    window.attrset(COLOR_PAIR(0) );
     window.refresh();
     true
 }
