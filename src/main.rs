@@ -19,12 +19,6 @@ enum State {
 
 fn main() {
     let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-    // Load a sound from a file, using a path relative to Cargo.toml
-    //let file = File::open("alarm.wav").unwrap();
-    //let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-    //let play_it = || {stream_handle.play_raw(source.convert_samples()).unwrap()};
-    //stream_handle.play_raw(source.convert_samples()).unwrap();
-    //play_it();
 
     let font = font::get_font();
     let window = pancurses::initscr();
@@ -57,7 +51,7 @@ fn main() {
             }
         };
         if let (State::Running(_), State::Finished(_)) = (old_state, state) {
-            let file = File::open("alarm.wav").unwrap();
+            let file = File::open("src/alarm.wav").unwrap();
             let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
             stream_handle.play_raw(source.convert_samples()).unwrap();
         }
