@@ -2,7 +2,9 @@ extern crate pancurses;
 
 use pancurses::{Input, Window, COLOR_PAIR, COLOR_BLACK};
 use std::time::{Duration, Instant};
-use crate::State::{Finished, Running};
+use std::fs::File;
+use std::io::BufReader;
+use rodio::{Source};
 
 mod font;
 
@@ -16,6 +18,14 @@ enum State {
 
 
 fn main() {
+    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+    // Load a sound from a file, using a path relative to Cargo.toml
+    //let file = File::open("alarm.wav").unwrap();
+    //let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    //let play_it = || {stream_handle.play_raw(source.convert_samples()).unwrap()};
+    //stream_handle.play_raw(source.convert_samples()).unwrap();
+    //play_it();
+
     let font = font::get_font();
     let window = pancurses::initscr();
     let start_time: Instant = Instant::now();
@@ -32,12 +42,13 @@ fn main() {
     let mut state = State::Starting(0);
     let mut current_time = start_time;
     while render(&window, state, &font, (start_time, current_time)) {
+        let old_state = state;
         state = match window.getch() {
             Some(input) => match state {
                 State::Starting(minutes) => setup_mode(minutes, input, current_time),
                 State::Running(end_time) => run_mode(end_time, input, current_time),
                 State::Paused(end_time, pause_time) =>
-                    pause_mode(end_time, pause_time, input),
+                    pause_mode(end_time, pause_time, input, current_time),
                 _ => state,
             },
             None => match state {
@@ -45,6 +56,11 @@ fn main() {
                 _ => state
             }
         };
+        if let (State::Running(_), State::Finished(_)) = (old_state, state) {
+            let file = File::open("alarm.wav").unwrap();
+            let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+            stream_handle.play_raw(source.convert_samples()).unwrap();
+        }
         current_time = Instant::now();
     };
     pancurses::endwin();
@@ -52,9 +68,9 @@ fn main() {
 
 fn check_done(end_time: Instant, current_time: Instant) -> State {
     if end_time.saturating_duration_since(current_time).as_millis() == 0 {
-        Finished(end_time)
+        State::Finished(end_time)
     } else {
-        Running(end_time)
+        State::Running(end_time)
     }
 }
 
@@ -68,7 +84,7 @@ fn setup_mode(minutes: usize, input: Input, current_time: Instant) -> State {
 }
 
 fn run_state(minutes: usize, current_time: Instant) -> State {
-    State::Running(current_time + Duration::from_secs((minutes * 60) as u64))
+    State::Running(current_time + Duration::from_secs(10))//(minutes * 60) as u64))
 }
 
 
@@ -79,11 +95,11 @@ fn run_mode(end_time: Instant, input: Input, current_time: Instant) -> State {
     }
 }
 
-fn pause_mode(end_time: Instant, paused_time: Instant, input: Input) -> State {
+fn pause_mode(end_time: Instant, paused_time: Instant, input: Input, current_time: Instant) -> State {
     match input {
         Input::Character(' ') => {
             let remaining = end_time - paused_time;
-            State::Running(Instant::now() + remaining)
+            State::Running(current_time + remaining)
         }
         _ => State::Paused(end_time, paused_time)
     }

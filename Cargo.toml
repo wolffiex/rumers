@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 pancurses = "0.16"
+rodio = "0.13.0"
