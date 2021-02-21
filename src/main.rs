@@ -13,18 +13,11 @@ enum State {
     Starting(usize),
     Running(Instant),
     Paused(Instant, Instant),
-    Finished(Instant),
 }
 
-
-fn main() {
-    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-
-    let font = font::get_font();
+fn start_pancurses() -> Window {
     let window = pancurses::initscr();
-    let start_time: Instant = Instant::now();
     pancurses::start_color();
-    window.keypad(true);
     pancurses::init_color(10, 300, 300, 300);
     pancurses::init_color(11, 700, 700, 300);
     pancurses::init_pair(1, 10, COLOR_BLACK);
@@ -32,11 +25,24 @@ fn main() {
     pancurses::noecho();
     pancurses::cbreak();
     pancurses::curs_set(0);
+    window.keypad(true);
+    window
+}
+
+fn main() {
+    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+    let file = File::open("src/alarm.wav").unwrap();
+    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+
+    let font = font::get_font();
+    let window = start_pancurses();
     window.timeout(100);
+    let start_time: Instant = Instant::now();
+    let mut is_done = false;
     let mut state = State::Starting(0);
-    let mut current_time = start_time;
-    while render(&window, state, &font, (start_time, current_time)) {
-        let old_state = state;
+    while !is_done {
+        let current_time = Instant::now();
+        render(&window, state, &font, (start_time, current_time));
         state = match window.getch() {
             Some(input) => match state {
                 State::Starting(minutes) => setup_mode(minutes, input, current_time),
@@ -45,27 +51,14 @@ fn main() {
                     pause_mode(end_time, pause_time, input, current_time),
                 _ => state,
             },
-            None => match state {
-                State::Running(end_time) => check_done(end_time, current_time),
-                _ => state
-            }
+            _ => {state}
         };
-        if let (State::Running(_), State::Finished(_)) = (old_state, state) {
-            let file = File::open("src/alarm.wav").unwrap();
-            let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
-            stream_handle.play_raw(source.convert_samples()).unwrap();
+        if let State::Running(end_time) = state {
+            is_done = end_time.saturating_duration_since(current_time).as_millis() == 0;
         }
-        current_time = Instant::now();
     };
+    stream_handle.play_raw(source.convert_samples()).unwrap();
     pancurses::endwin();
-}
-
-fn check_done(end_time: Instant, current_time: Instant) -> State {
-    if end_time.saturating_duration_since(current_time).as_millis() == 0 {
-        State::Finished(end_time)
-    } else {
-        State::Running(end_time)
-    }
 }
 
 fn setup_mode(minutes: usize, input: Input, current_time: Instant) -> State {
@@ -105,7 +98,6 @@ fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_n
         State::Running(end_time) => min_sec_until(time_now, end_time),
         State::Paused(end_time, pause_time) =>
             min_sec_until(pause_time, end_time),
-        State::Finished(_) => (0, 0)
     };
     window.clear();
     let m_tens = minutes / 10;
@@ -116,8 +108,6 @@ fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_n
     let time_color = match state {
         State::Paused(_, _) =>
             if ((time_now - start_time).as_millis() / 800) % 2 == 1 { 10 } else { 0 }
-        State::Finished(end_time) =>
-            if ((time_now - end_time).as_millis() / 800) % 2 == 1 { 11 } else { 0 }
         _ => 0
     };
     window.attrset(COLOR_PAIR(time_color));
@@ -137,10 +127,6 @@ fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_n
         window.mvaddstr(y, 22, r"x");
     }
     window.refresh();
-    if let State::Finished(end_time) = state {
-        let duration = time_now - end_time;
-        if duration.as_millis() > 10000 { return false; };
-    }
     true
 }
 
