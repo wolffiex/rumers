@@ -89,14 +89,14 @@ const NINE: &str = r"
 
 pub fn get_font() -> Vec<String> {
     // Without a min_width, the 1 looks a little funny
-    const min_width:usize = 5;
+    const MIN_WIDTH:usize = 5;
     let numerals= [ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE];
     let widths = numerals.iter().map(|s| max_line_width(s));
     let max_width = widths.clone().fold(0, cmp::max);
 
     widths.zip(numerals.iter()).map(|(width, numeral)| {
         numeral.lines().skip(1).fold("".to_owned(), |acc, line| {
-            let padded = format!("{:<1$}", line, cmp::max(min_width, width));
+            let padded = format!("{:<1$}", line, cmp::max(MIN_WIDTH, width));
             let pad2 = format!("{:>1$}", padded, max_width);
             return acc + &pad2 + "\n";
         })

@@ -1,6 +1,6 @@
 extern crate pancurses;
 
-use pancurses::{initscr, endwin, Input, noecho, cbreak, Window, curs_set, COLOR_PAIR, COLOR_BLACK, COLOR_MAGENTA, A_BOLD, init_pair, COLOR_CYAN};
+use pancurses::{Input, Window, COLOR_PAIR, COLOR_BLACK};
 use std::time::{Duration, Instant};
 use crate::State::{Finished, Running};
 
@@ -17,13 +17,14 @@ enum State {
 
 fn main() {
     let font = font::get_font();
-    let window = initscr();
+    let window = pancurses::initscr();
     let start_time: Instant = Instant::now();
     pancurses::start_color();
     window.keypad(true);
     pancurses::init_color(10, 300, 300, 300);
     pancurses::init_color(11, 700, 700, 300);
     pancurses::init_pair(1, 10, COLOR_BLACK);
+    pancurses::init_pair(2, 11, COLOR_BLACK);
     pancurses::noecho();
     pancurses::cbreak();
     pancurses::curs_set(0);
@@ -46,7 +47,7 @@ fn main() {
         };
         current_time = Instant::now();
     };
-    endwin();
+    pancurses::endwin();
 }
 
 fn check_done(end_time: Instant, current_time: Instant) -> State {
@@ -102,14 +103,14 @@ fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_n
     let s_tens = seconds / 10;
     let s_ones = seconds % 10;
     const TOP: usize = 2;
-    if let State::Paused(_, _) = state {
-        let duration = time_now - start_time;
-        if (duration.as_millis() / 800) % 2 == 0 {
-            window.attrset(COLOR_PAIR(1));
-        }
-    } else {
-        window.attrset(COLOR_PAIR(0));
-    }
+    let time_color = match state {
+        State::Paused(_, _) =>
+            if ((time_now - start_time).as_millis() / 800) % 2 == 1 { 10 } else { 0 }
+        State::Finished(end_time) =>
+            if ((time_now - end_time).as_millis() / 800) % 2 == 1 { 11 } else { 0 }
+        _ => 0
+    };
+    window.attrset(COLOR_PAIR(time_color));
     if m_tens > 0 { render_numeral(window, 2, TOP, &font[m_tens]) }
     render_numeral(window, 12, TOP, &font[m_ones]);
     render_numeral(window, 24, TOP, &font[s_tens]);
@@ -126,6 +127,10 @@ fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_n
         window.mvaddstr(y, 22, r"x");
     }
     window.refresh();
+    if let State::Finished(end_time) = state {
+        let duration = time_now - end_time;
+        if duration.as_millis() > 10000 { return false; };
+    }
     true
 }
 
