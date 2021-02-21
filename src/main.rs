@@ -42,17 +42,30 @@ fn main() {
     let mut state = State::Starting(0);
     while !is_done {
         let current_time = Instant::now();
-        render(&window, state, &font, (start_time, current_time));
         state = match window.getch() {
             Some(input) => match state {
                 State::Starting(minutes) => setup_mode(minutes, input, current_time),
                 State::Running(end_time) => run_mode(end_time, input, current_time),
                 State::Paused(end_time, pause_time) =>
                     pause_mode(end_time, pause_time, input, current_time),
-                _ => state,
             },
-            _ => {state}
+            _ => { state }
         };
+        let (minutes, seconds) = match state {
+            State::Starting(minutes) => (minutes, 0 as usize),
+            State::Running(end_time) => min_sec_until(current_time, end_time),
+            State::Paused(end_time, pause_time) =>
+                min_sec_until(pause_time, end_time),
+        };
+        let m_tens = minutes / 10;
+        let m_ones = minutes % 10;
+        let s_tens = seconds / 10;
+        let s_ones = seconds % 10;
+        let digits = [(m_tens), (m_ones), (s_tens), (s_ones)];
+        let is_blink_on =
+            ((current_time - start_time).as_millis() / 800) % 2 == 1;
+        render(&window, &font, digits, state, is_blink_on);
+
         if let State::Running(end_time) = state {
             is_done = end_time.saturating_duration_since(current_time).as_millis() == 0;
         }
@@ -71,7 +84,7 @@ fn setup_mode(minutes: usize, input: Input, current_time: Instant) -> State {
 }
 
 fn run_state(minutes: usize, current_time: Instant) -> State {
-    State::Running(current_time + Duration::from_secs(10))//(minutes * 60) as u64))
+    State::Running(current_time + Duration::from_secs((minutes * 60) as u64))
 }
 
 
@@ -92,32 +105,21 @@ fn pause_mode(end_time: Instant, paused_time: Instant, input: Input, current_tim
     }
 }
 
-fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_now): (Instant, Instant)) -> bool {
-    let (minutes, seconds) = match state {
-        State::Starting(minutes) => (minutes, 0 as usize),
-        State::Running(end_time) => min_sec_until(time_now, end_time),
-        State::Paused(end_time, pause_time) =>
-            min_sec_until(pause_time, end_time),
-    };
+fn render(window: &Window, font: &Vec<String>, digits: [usize; 4], state: State, is_blink_on: bool) {
     window.clear();
-    let m_tens = minutes / 10;
-    let m_ones = minutes % 10;
-    let s_tens = seconds / 10;
-    let s_ones = seconds % 10;
     const TOP: usize = 2;
     let time_color = match state {
         State::Paused(_, _) =>
-            if ((time_now - start_time).as_millis() / 800) % 2 == 1 { 10 } else { 0 }
+            if is_blink_on { 1 } else { 0 }
         _ => 0
     };
     window.attrset(COLOR_PAIR(time_color));
-    if m_tens > 0 { render_numeral(window, 2, TOP, &font[m_tens]) }
-    render_numeral(window, 12, TOP, &font[m_ones]);
-    render_numeral(window, 24, TOP, &font[s_tens]);
-    render_numeral(window, 34, TOP, &font[s_ones]);
+    if digits[0] > 0 { render_numeral(window, 2, TOP, &font[digits[0]]) }
+    render_numeral(window, 12, TOP, &font[digits[1]]);
+    render_numeral(window, 24, TOP, &font[digits[2]]);
+    render_numeral(window, 34, TOP, &font[digits[3]]);
     if let State::Running(_) = state {
-        let duration = time_now - start_time;
-        if (duration.as_millis() / 800) % 2 == 0 {
+        if is_blink_on {
             window.attrset(COLOR_PAIR(1));
         }
     } else {
@@ -127,7 +129,6 @@ fn render(window: &Window, state: State, font: &Vec<String>, (start_time, time_n
         window.mvaddstr(y, 22, r"x");
     }
     window.refresh();
-    true
 }
 
 fn render_numeral(window: &Window, x: usize, y: usize, numeral: &str) {
