@@ -89,7 +89,7 @@ fn handle_input(state: State, input: Input, current_time: Instant) -> State {
         State::Starting(minutes) => {
             match input {
                 Input::Character(' ') | Input::Character('\n') | Input::KeyEnter =>
-                    State::Running(current_time + Duration::from_secs(2)), //(minutes * 60) as u64))
+                    State::Running(current_time + Duration::from_secs((minutes * 60) as u64)),
                 Input::KeyUp => State::Starting(minutes + 1),
                 Input::KeyDown => State::Starting(if minutes > 1 { minutes - 1 } else { 1 }),
                 _ => State::Starting(minutes),
@@ -135,6 +135,7 @@ fn render_numeral(window: &Window, x: usize, y: usize, numeral: &str) {
 
 fn min_sec_until(from_time: Instant, to_time: Instant) -> (usize, usize) {
     let duration = to_time.saturating_duration_since(from_time);
-    let secs = duration.as_secs() as usize;
+    let secs = duration.as_secs() as usize + if duration.subsec_nanos() > 0 {1} else {0};
+
     (secs / 60, secs % 60)
 }
