@@ -57,20 +57,35 @@ fn main() {
             State::Paused(end_time, pause_time) =>
                 min_sec_until(pause_time, end_time),
         };
-        let m_tens = minutes / 10;
-        let m_ones = minutes % 10;
-        let s_tens = seconds / 10;
-        let s_ones = seconds % 10;
-        let digits = [(m_tens), (m_ones), (s_tens), (s_ones)];
-        let is_blink_on =
-            ((current_time - start_time).as_millis() / 800) % 2 == 1;
-        render(&window, &font, digits, state, is_blink_on);
+        let digits = [minutes / 10, minutes % 10, seconds / 10, seconds % 10];
+        let is_blink_on = ((current_time - start_time).as_millis() / 800) % 2 == 1;
+
+        let colors = if is_blink_on {
+            match state {
+                State::Running(..) => (0, 1),
+                State::Paused(..) => (0, 0),
+                _ => (0, 0),
+            }
+        } else {
+            (0, 0)
+        };
+
+        render(&window, &font, digits, colors);
 
         if let State::Running(end_time) = state {
             is_done = end_time.saturating_duration_since(current_time).as_millis() == 0;
         }
     };
+    let done_time = Instant::now();
     stream_handle.play_raw(source.convert_samples()).unwrap();
+    let mut is_blink_on = true;
+    let sleep_duration = Duration::from_millis(800);
+    while Instant::now().duration_since(done_time).as_secs() < 10 {
+        let colors = if is_blink_on { (1, 1) } else { (0, 0) };
+        render(&window, &font, [0, 0, 0, 0], colors);
+        std::thread::sleep(sleep_duration);
+        is_blink_on = !is_blink_on;
+    }
     pancurses::endwin();
 }
 
@@ -84,7 +99,8 @@ fn setup_mode(minutes: usize, input: Input, current_time: Instant) -> State {
 }
 
 fn run_state(minutes: usize, current_time: Instant) -> State {
-    State::Running(current_time + Duration::from_secs((minutes * 60) as u64))
+    //State::Running(current_time + Duration::from_secs((minutes * 60) as u64))
+    State::Running(current_time + Duration::from_secs(2)) //(minutes * 60) as u64))
 }
 
 
@@ -105,26 +121,18 @@ fn pause_mode(end_time: Instant, paused_time: Instant, input: Input, current_tim
     }
 }
 
-fn render(window: &Window, font: &Vec<String>, digits: [usize; 4], state: State, is_blink_on: bool) {
+fn render(window: &Window, font: &Vec<String>, digits: [usize; 4],
+          (time_color, separator_color): (u32, u32)) {
     window.clear();
     const TOP: usize = 2;
-    let time_color = match state {
-        State::Paused(_, _) =>
-            if is_blink_on { 1 } else { 0 }
-        _ => 0
-    };
+
     window.attrset(COLOR_PAIR(time_color));
     if digits[0] > 0 { render_numeral(window, 2, TOP, &font[digits[0]]) }
     render_numeral(window, 12, TOP, &font[digits[1]]);
     render_numeral(window, 24, TOP, &font[digits[2]]);
     render_numeral(window, 34, TOP, &font[digits[3]]);
-    if let State::Running(_) = state {
-        if is_blink_on {
-            window.attrset(COLOR_PAIR(1));
-        }
-    } else {
-        window.attrset(COLOR_PAIR(0));
-    }
+
+    window.attrset(COLOR_PAIR(separator_color));
     for &y in [4, 6].iter() {
         window.mvaddstr(y, 22, r"x");
     }
