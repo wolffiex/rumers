@@ -19,15 +19,15 @@ fn start_pancurses() -> Window {
     let window = pancurses::initscr();
     pancurses::start_color();
     pancurses::init_color(10, 300, 300, 300);
-    pancurses::init_color(11, 700, 700, 300);
     pancurses::init_pair(1, 10, COLOR_BLACK);
-    pancurses::init_pair(2, 11, COLOR_BLACK);
     pancurses::noecho();
     pancurses::cbreak();
     pancurses::curs_set(0);
     window.keypad(true);
     window
 }
+
+const BLINK_MS: u128 = 800;
 
 fn main() {
     let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
@@ -39,18 +39,13 @@ fn main() {
     window.timeout(100);
     let start_time: Instant = Instant::now();
     let mut is_done = false;
-    let mut state = State::Starting(0);
+    let mut state = State::Starting(1);
     while !is_done {
+        let maybe_input = window.getch();
         let current_time = Instant::now();
-        state = match window.getch() {
-            Some(input) => match state {
-                State::Starting(minutes) => setup_mode(minutes, input, current_time),
-                State::Running(end_time) => run_mode(end_time, input, current_time),
-                State::Paused(end_time, pause_time) =>
-                    pause_mode(end_time, pause_time, input, current_time),
-            },
-            _ => { state }
-        };
+        if let Some(input) = maybe_input {
+            state = handle_input(state, input, current_time)
+        }
         let (minutes, seconds) = match state {
             State::Starting(minutes) => (minutes, 0 as usize),
             State::Running(end_time) => min_sec_until(current_time, end_time),
@@ -58,12 +53,12 @@ fn main() {
                 min_sec_until(pause_time, end_time),
         };
         let digits = [minutes / 10, minutes % 10, seconds / 10, seconds % 10];
-        let is_blink_on = ((current_time - start_time).as_millis() / 800) % 2 == 1;
+        let is_blink_on = ((current_time - start_time).as_millis() / BLINK_MS) % 2 == 1;
 
         let colors = if is_blink_on {
             match state {
                 State::Running(..) => (0, 1),
-                State::Paused(..) => (0, 0),
+                State::Paused(..) => (1, 0),
                 _ => (0, 0),
             }
         } else {
@@ -72,14 +67,14 @@ fn main() {
 
         render(&window, &font, digits, colors);
 
-        if let State::Running(end_time) = state {
-            is_done = end_time.saturating_duration_since(current_time).as_millis() == 0;
-        }
+        is_done = if let State::Running(end_time) = state {
+            end_time.saturating_duration_since(current_time).as_millis() == 0
+        } else {false}
     };
     let done_time = Instant::now();
     stream_handle.play_raw(source.convert_samples()).unwrap();
     let mut is_blink_on = true;
-    let sleep_duration = Duration::from_millis(800);
+    let sleep_duration = Duration::from_millis(BLINK_MS as u64);
     while Instant::now().duration_since(done_time).as_secs() < 10 {
         let colors = if is_blink_on { (1, 1) } else { (0, 0) };
         render(&window, &font, [0, 0, 0, 0], colors);
@@ -89,35 +84,26 @@ fn main() {
     pancurses::endwin();
 }
 
-fn setup_mode(minutes: usize, input: Input, current_time: Instant) -> State {
-    match input {
-        Input::Character(' ') | Input::Character('\n') | Input::KeyEnter => run_state(minutes, current_time),
-        Input::KeyUp => State::Starting(minutes + 1),
-        Input::KeyDown => State::Starting(if minutes > 0 { minutes - 1 } else { 0 }),
-        _ => State::Starting(minutes),
-    }
-}
-
-fn run_state(minutes: usize, current_time: Instant) -> State {
-    //State::Running(current_time + Duration::from_secs((minutes * 60) as u64))
-    State::Running(current_time + Duration::from_secs(2)) //(minutes * 60) as u64))
-}
-
-
-fn run_mode(end_time: Instant, input: Input, current_time: Instant) -> State {
-    match input {
-        Input::Character(' ') => State::Paused(end_time, current_time),
-        _ => State::Running(end_time)
-    }
-}
-
-fn pause_mode(end_time: Instant, paused_time: Instant, input: Input, current_time: Instant) -> State {
-    match input {
-        Input::Character(' ') => {
-            let remaining = end_time - paused_time;
-            State::Running(current_time + remaining)
+fn handle_input(state: State, input: Input, current_time: Instant) -> State {
+    match state {
+        State::Starting(minutes) => {
+            match input {
+                Input::Character(' ') | Input::Character('\n') | Input::KeyEnter =>
+                    State::Running(current_time + Duration::from_secs(2)), //(minutes * 60) as u64))
+                Input::KeyUp => State::Starting(minutes + 1),
+                Input::KeyDown => State::Starting(if minutes > 1 { minutes - 1 } else { 1 }),
+                _ => State::Starting(minutes),
+            }
+        },
+        _ => match input {
+            Input::Character(' ') | Input::Character('\n') | Input::KeyEnter => match state {
+                State::Running(end_time) => State::Paused(end_time, current_time),
+                State::Paused(end_time, pause_time) =>
+                    State::Running(current_time + (end_time - pause_time)),
+                _ => state
+            },
+            _ => state
         }
-        _ => State::Paused(end_time, paused_time)
     }
 }
 
