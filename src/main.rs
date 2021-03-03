@@ -31,7 +31,7 @@ const BLINK_MS: u128 = 800;
 
 fn main() {
     let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
-    let file = File::open("src/alarm.wav").unwrap();
+    let file = File::open("src/411090__inspectorj__wind-chime-gamelan-gong-a.wav").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
 
     let font = font::get_font();
