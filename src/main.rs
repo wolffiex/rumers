@@ -4,7 +4,16 @@ use pancurses::{Input, Window, COLOR_PAIR, COLOR_BLACK};
 use std::time::{Duration, Instant};
 use std::fs::File;
 use std::io::BufReader;
-use rodio::{Source};
+use rodio::Source;
+use clap::Parser;
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    minutes: Option<u8>,
+}
+
 
 mod font;
 
@@ -30,6 +39,8 @@ fn start_pancurses() -> Window {
 const BLINK_MS: u128 = 800;
 
 fn main() {
+    let args = Args::parse();
+
     let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
     let file = File::open("src/411090__inspectorj__wind-chime-gamelan-gong-a.wav").unwrap();
     let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
@@ -39,7 +50,11 @@ fn main() {
     window.timeout(100);
     let start_time: Instant = Instant::now();
     let mut is_done = false;
-    let mut state = State::Starting(1);
+    let mut state = if let Some(minutes) = args.minutes {
+        State::Running(Instant::now() + Duration::from_secs(minutes as u64 * 60))
+    } else {
+        State::Starting(1)
+    };
     while !is_done {
         let maybe_input = window.getch();
         let current_time = Instant::now();
@@ -109,6 +124,7 @@ fn handle_input(state: State, input: Input, current_time: Instant) -> State {
 
 fn render(window: &Window, font: &Vec<String>, digits: [usize; 4],
           (time_color, separator_color): (u32, u32)) {
+
     window.clear();
     const TOP: usize = 2;
 

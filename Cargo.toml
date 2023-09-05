@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 pancurses = "0.16"
 rodio = "0.13.0"
+clap = { version = "4.4.2", features = ["derive"] }
